@@ -96,7 +96,7 @@
           ${p.picking?`
             <div style="display:flex;flex-direction:column;gap:8px;animation:glFade .25s cubic-bezier(.2,.7,.2,1) both">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="display:flex;align-items:baseline;gap:10px"><span style="font-size:11px;font-weight:500;letter-spacing:.12em;color:#6b6760">SELECT UK SIZE</span><a href="#" style="font-size:11px;color:#141414;text-decoration:underline;text-underline-offset:2px">Size guide</a></span>
+                <span style="display:flex;align-items:baseline;gap:10px"><span style="font-size:11px;font-weight:500;letter-spacing:.12em;color:#6b6760">SELECT UK SIZE</span></span>
                 <button data-act="cancel" aria-label="Close" style="width:28px;height:28px;border:0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:#141414"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
               </div>
               <div style="display:grid;grid-template-columns:repeat(${p.sizeCols},minmax(0,1fr));gap:4px">
