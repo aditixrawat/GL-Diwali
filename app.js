@@ -1,6 +1,21 @@
 (function () {
   'use strict';
-  var CFG = { startCount: 342, liveTicking: true, fireworks: true };
+  var CFG = {
+    fireworks: true,
+    /* Product grid source: Shopify collection JSON. Falls back to the built-in list if it can't be reached. */
+    collectionUrl: 'https://gullylabs.com/collections/diwali-edit/products.json?limit=250',
+    /* When the page runs on the Shopify store, Add to cart also adds the real variant to the Shopify cart. */
+    shopifyCart: true,
+    checkoutUrl: '/checkout',
+    keychainTotal: 500,
+    /* Live keychain stock. Sources are tried in this order:
+       1. window.BB_KEYCHAIN_STOCK, printed by the Shopify theme (see index.html).
+       2. stockUrl: any endpoint returning JSON like {"stock": 341}. Polled every pollMs.
+       3. fallbackStock if neither is available. */
+    stockUrl: '',
+    pollMs: 60000,
+    fallbackStock: 500
+  };
 
   var PRODUCTS = [
     { id: 1, series: 'Gully Number 001', name: 'Saaj Orange', stock: {6:4,7:2,8:0,9:6,10:1}, rating: '5.0 (10)', g: ['MEN','WOMEN'], price: 'INR 8990.00' },
@@ -12,10 +27,45 @@
     { id: 7, series: 'Gully Number 001', name: 'Baaz Leila Navy', stock: {6:7,7:10,8:2,9:9,10:5}, rating: '4.9 (30)', g: ['MEN','WOMEN'], price: 'INR 4290.00' },
     { id: 8, series: 'Gully Number 001', name: 'Baaz Noor Yellow', stock: {6:5,7:8,8:6,9:0,10:2}, rating: '4.8 (25)', g: ['WOMEN','MEN'], price: 'INR 4290.00' }
   ];
-  var IMG = function (id) { return './assets/products/p' + id + '.jpg'; };
+  var IMG = function (id) { var p = PRODUCTS.filter(function (x) { return x.id === id; })[0]; return (p && p.imgUrl) || './assets/products/p' + id + '.jpg'; };
   var SIZES = [6, 7, 8, 9, 10];
+  var sizesOf = function (p) { return p.sizeList || SIZES; };
 
-  var S = { remaining: CFG.startCount, tab: 'ALL', picking: null, added: {}, lines: [], cart: 0, drawer: false, hover: null,
+  function fromShopify(list) {
+    return list.map(function (sp) {
+      var parts = sp.title.split(/\s+[-–]\s+/);
+      var series = parts.length > 1 ? parts[0].trim() : 'Gully Labs';
+      series = series.replace(/\b([A-Z])([A-Z]+)\b/g, function (m, a, b) { return a + b.toLowerCase(); });
+      var name = (parts.length > 1 ? parts.slice(1).join(' - ') : sp.title).replace(/\s+for\s+women$/i, '').replace(/\s+/g, ' ').trim();
+      var tags = (sp.tags || []).map(function (t) { return String(t).toLowerCase(); });
+      var g = []; if (tags.indexOf('men') > -1) g.push('MEN'); if (tags.indexOf('women') > -1) g.push('WOMEN'); if (!g.length) g = ['MEN', 'WOMEN'];
+      var oi = 0; (sp.options || []).forEach(function (o, i) { if (/size/i.test(o.name)) oi = i; });
+      var stock = {}, variants = {}, sizeList = [];
+      (sp.variants || []).forEach(function (v) {
+        var z = parseInt(String(v['option' + (oi + 1)] || v.title).replace(/[^0-9]/g, ''), 10); if (isNaN(z)) return;
+        if (sizeList.indexOf(z) < 0) sizeList.push(z);
+        stock[z] = v.available ? 9 : 0; variants[z] = v.id;
+      });
+      sizeList.sort(function (a, b) { return a - b; });
+      var v0 = (sp.variants || [])[0] || {};
+      var src = sp.images && sp.images[0] && sp.images[0].src;
+      return { id: sp.id, handle: sp.handle, series: series, name: name, stock: stock, variants: variants, sizeList: sizeList,
+        rating: '', g: g, price: 'INR ' + Number(v0.price || 0).toFixed(2),
+        imgUrl: src ? src + (src.indexOf('?') > -1 ? '&' : '?') + 'width=800' : '' };
+    }).filter(function (p) { return p.sizeList.length; });
+  }
+  function loadCollection() {
+    if (!CFG.collectionUrl || !window.fetch) return;
+    fetch(CFG.collectionUrl, { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.products || !j.products.length) return;
+        var list = fromShopify(j.products); if (!list.length) return;
+        PRODUCTS = list; S.added = {}; S.picking = null; renderGrid();
+      }).catch(function () {});
+  }
+
+  var S = { remaining: (typeof window.BB_KEYCHAIN_STOCK === 'number') ? window.BB_KEYCHAIN_STOCK : CFG.fallbackStock, tab: 'ALL', picking: null, added: {}, lines: [], cart: 0, drawer: false, hover: null,
     scratched: false, touched: false, scratching: false, chT: null, w: window.innerWidth, scrolled: false, gridVisible: false, pastTop: false };
   var $ = function (id) { return document.getElementById(id); };
   var lineKey = 0;
@@ -27,10 +77,10 @@
             <span style="display:block;width:34%;height:34%;background:#fff;-webkit-mask:url(./assets/bb-star.png) center/contain no-repeat;mask:url(./assets/bb-star.png) center/contain no-repeat"></span>
           </div>
           <div data-r="lift" style="position:relative;aspect-ratio:5/7;background:#fff;overflow:hidden;border-radius:10px;border:1px solid rgba(20,20,20,.14);box-shadow:${p.glow};transform:${p.liftT};transform-origin:50% 100%;transition:box-shadow .5s linear,transform .55s cubic-bezier(.2,.8,.2,1)">
-            <div aria-hidden="true" style="position:absolute;left:3%;top:3%;z-index:2;width:12%;display:flex;flex-direction:column;align-items:center;gap:2px;color:${p.suitC};pointer-events:none;"><span style="font:700 clamp(18px,2vw,28px)/.9 'Playfair Display',Georgia,serif;letter-spacing:-.04em;transform:scaleX(.86)">${p.rank}</span><span style="display:block;width:clamp(11px,1.1vw,15px);height:clamp(11px,1.1vw,15px);background:${p.suitC};-webkit-mask:${p.suitMask};mask:${p.suitMask}"></span></div>
-            <div aria-hidden="true" style="position:absolute;right:3%;bottom:3%;z-index:2;width:12%;display:flex;flex-direction:column;align-items:center;gap:2px;color:${p.suitC};pointer-events:none;transform:rotate(180deg)"><span style="font:700 clamp(18px,2vw,28px)/.9 'Playfair Display',Georgia,serif;letter-spacing:-.04em;transform:scaleX(.86)">${p.rank}</span><span style="display:block;width:clamp(11px,1.1vw,15px);height:clamp(11px,1.1vw,15px);background:${p.suitC};-webkit-mask:${p.suitMask};mask:${p.suitMask}"></span></div>
-            <div aria-hidden="true" style="position:absolute;top:17%;bottom:17%;left:6%;right:6%;border:1px solid rgba(20,20,20,.12);border-radius:3px;pointer-events:none;z-index:1"></div>
-            <div data-r="img" role="img" aria-label="${p.title}" style="position:absolute;top:17%;bottom:17%;left:6%;right:6%;background-color:#fff;background-repeat:no-repeat;background-image:${p.bgImg};background-size:contain;background-position:center;transform:${p.zoom};transition:transform 1.2s cubic-bezier(.2,.7,.2,1)"></div>
+            <div aria-hidden="true" style="position:absolute;left:3%;top:3%;z-index:2;width:12%;display:flex;flex-direction:column;align-items:center;gap:2px;color:${p.suitC};pointer-events:none;"><span style="font:700 clamp(18px,2vw,28px)/.9 'Card Characters','Playfair Display',Georgia,serif;letter-spacing:-.04em;transform:scaleX(.86)">${p.rank}</span><span style="display:block;width:clamp(11px,1.1vw,15px);height:clamp(11px,1.1vw,15px);background:${p.suitC};-webkit-mask:${p.suitMask};mask:${p.suitMask}"></span></div>
+            <div aria-hidden="true" style="position:absolute;right:3%;bottom:3%;z-index:2;width:12%;display:flex;flex-direction:column;align-items:center;gap:2px;color:${p.suitC};pointer-events:none;transform:rotate(180deg)"><span style="font:700 clamp(18px,2vw,28px)/.9 'Card Characters','Playfair Display',Georgia,serif;letter-spacing:-.04em;transform:scaleX(.86)">${p.rank}</span><span style="display:block;width:clamp(11px,1.1vw,15px);height:clamp(11px,1.1vw,15px);background:${p.suitC};-webkit-mask:${p.suitMask};mask:${p.suitMask}"></span></div>
+            <div aria-hidden="true" style="position:absolute;top:18.57%;bottom:18.57%;left:6%;right:6%;border:1px solid rgba(20,20,20,.12);border-radius:3px;pointer-events:none;z-index:1"></div>
+            <div data-r="img" role="img" aria-label="${p.title}" style="position:absolute;top:18.57%;bottom:18.57%;left:6%;right:6%;overflow:hidden;border-radius:3px;background-color:#f4f4f4;background-repeat:no-repeat;background-image:${p.bgImg};background-size:cover;background-position:center;transform:${p.zoom};transition:transform 1.2s cubic-bezier(.2,.7,.2,1)"></div>
             
             
           </div>
@@ -40,7 +90,7 @@
             <span style="font-size:var(--nameFs);font-weight:500;line-height:1.3;letter-spacing:-.01em">${p.name}</span>
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px">
               <span style="font-size:var(--priceFs);font-weight:600;white-space:nowrap">${p.price}</span>
-              <span style="font-size:11px;letter-spacing:.04em;color:#6b6760;white-space:nowrap"><span style="color:var(--gl-amber)">★</span> ${p.rating}</span>
+              ${p.rating?`<span style="font-size:11px;letter-spacing:.04em;color:#6b6760;white-space:nowrap"><span style="color:var(--gl-amber)">★</span> ${p.rating}</span>`:''}
             </div>
           </div>
           ${p.picking?`
@@ -49,7 +99,7 @@
                 <span style="display:flex;align-items:baseline;gap:10px"><span style="font-size:11px;font-weight:500;letter-spacing:.12em;color:#6b6760">SELECT UK SIZE</span><a href="#" style="font-size:11px;color:#141414;text-decoration:underline;text-underline-offset:2px">Size guide</a></span>
                 <button data-act="cancel" aria-label="Close" style="width:28px;height:28px;border:0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:#141414"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
               </div>
-              <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px">
+              <div style="display:grid;grid-template-columns:repeat(${p.sizeCols},minmax(0,1fr));gap:4px">
                 ${p.sizes.map(function(z){return `
                   <button data-act="add" data-id="${p.id}" data-size="${z.label}" ${z.out?'disabled':''} aria-label="${z.aria}" style="position:relative;height:var(--btnH);border-radius:var(--gl-r-field);border:1px solid ${z.bd};background:${z.bg};color:${z.fg};font:500 13px var(--gl-font-brand);cursor:${z.cursor};padding:0;text-decoration:${z.strike};transition:background .15s linear,color .15s linear" data-hv="${z.out?'':'size'}">${z.label}${z.low?`<span style="position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:#F22546"></span>`:''}</button>
                 `;}).join('')}
@@ -80,7 +130,7 @@
     var pi = PRODUCTS.indexOf(p);
     var suit = ['diamond', 'spade', 'heart', 'club'][pi % 4];
     var addedSize = S.added[p.id];
-    var lows = SIZES.filter(function (z) { return p.stock[z] > 0 && p.stock[z] <= 3; }).sort(function (a, b) { return p.stock[a] - p.stock[b]; });
+    var lows = sizesOf(p).filter(function (z) { return p.stock[z] > 0 && p.stock[z] <= 3; }).sort(function (a, b) { return p.stock[a] - p.stock[b]; });
     return {
       id: p.id, name: p.name, price: p.price, rating: p.rating,
       title: p.series + ' ' + p.name, seriesU: p.series.toUpperCase(),
@@ -93,8 +143,9 @@
       lowNote: lows.length ? 'Only ' + p.stock[lows[0]] + ' left in UK' + lows[0] : '',
       btnLabel: addedSize ? 'UK' + addedSize + ' added · Add another' : 'Add to cart',
       btnBg: addedSize ? '#fff' : '#000', btnFg: addedSize ? '#000' : '#fff',
-      sizes: SIZES.map(function (z) {
-        var on = addedSize === z, q = p.stock[z], out = q === 0, low = q > 0 && q <= 3;
+      sizeCols: sizesOf(p).length <= 5 ? sizesOf(p).length : Math.ceil(sizesOf(p).length / 2),
+      sizes: sizesOf(p).map(function (z) {
+        var on = addedSize === z, q = p.stock[z] == null ? 0 : p.stock[z], out = q === 0, low = q > 0 && q <= 3;
         return { label: String(z), out: out, low: low,
           aria: out ? 'UK' + z + ' sold out' : (low ? 'UK' + z + ', only ' + q + ' left' : 'UK' + z),
           bg: on ? '#141414' : (out ? 'rgba(20,20,20,.04)' : 'transparent'),
@@ -111,8 +162,8 @@
   }
   var lastCols = null;
   function renderGrid() {
-    var all = PRODUCTS.filter(function (p) { return S.tab === 'ALL' || p.g.indexOf(S.tab) > -1; }).slice(0, 7);
     var cols = gridCols(); lastCols = cols;
+    var all = PRODUCTS.filter(function (p) { return S.tab === 'ALL' || p.g.indexOf(S.tab) > -1; }).slice(0, (Math.ceil(8 / cols) + 1) * cols - 1);
     var keep = all.length; while (keep > cols - 1 && (keep + 1) % cols !== 0) keep--;
     var host = $('grid-items');
     host.innerHTML = all.slice(0, keep).map(function (p) { return cardHTML(vm(p)); }).join('');
@@ -155,22 +206,34 @@
   function renderSticky() {
     var show = S.w < 760 && S.pastTop && !S.drawer && (!S.gridVisible || S.cart > 0);
     $('sticky').style.display = show ? 'block' : 'none';
-    $('sticky-label').textContent = S.cart > 0 ? 'Checkout · ' + S.cart + ' in cart' : 'Shop the Festive Edit';
+    $('sticky-label').textContent = S.cart > 0 ? 'Checkout · ' + S.cart + ' in cart' : 'Shop the Diwali Edit';
   }
 
   function renderCount() {
     var rem = S.remaining;
+    var tot = CFG.keychainTotal;
     String(rem).padStart(3, '0').split('').forEach(function (d, i) {
       var el = document.querySelector('[data-digit="' + i + '"]');
       if (el) el.style.transform = 'translateY(-' + (Number(d) * 10) + '%)';
     });
-    $('claimed').textContent = String(500 - rem);
-    $('claimbar').style.width = ((500 - rem) / 5).toFixed(1) + '%';
+    $('claimed').textContent = String(tot - rem);
+    $('claimbar').style.width = ((tot - rem) / tot * 100).toFixed(1) + '%';
     document.querySelectorAll('.rem').forEach(function (e) { e.textContent = rem.toLocaleString('en-IN'); });
   }
-  function tick() {
-    setTimeout(function () { S.remaining = Math.max(0, S.remaining - 1); renderCount(); tick(); }, 5000 + Math.random() * 7000);
+  function setStock(n) {
+    n = Math.max(0, Math.min(CFG.keychainTotal, Math.floor(Number(n))));
+    if (isNaN(n) || n === S.remaining) return;
+    S.remaining = n; renderCount();
   }
+  function pollStock() {
+    if (!CFG.stockUrl) return;
+    fetch(CFG.stockUrl, { cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j && j.stock != null) setStock(j.stock); })
+      .catch(function () {})
+      .then(function () { setTimeout(pollStock, CFG.pollMs); });
+  }
+  window.BBSetKeychainStock = setStock;
 
   function burst(x, y, rise, scale) {
     if (rise == null) rise = 150; if (scale == null) scale = 1;
@@ -211,6 +274,10 @@
     setTimeout(function () { burst(cx + (Math.random() < .5 ? -80 : 80), r.top, 230, 0.8); }, 260);
     S.cart += 1; S.added[id] = size; S.picking = null;
     S.lines.push({ key: ++lineKey, id: id, size: size });
+    var prod = PRODUCTS.filter(function (x) { return x.id === id; })[0];
+    if (CFG.shopifyCart && prod && prod.variants && prod.variants[size] && window.fetch) {
+      fetch('/cart/add.js', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ items: [{ id: prod.variants[size], quantity: 1 }] }) }).catch(function () {});
+    }
     renderGrid(); renderCart();
     setTimeout(function () { S.drawer = true; renderCart(); }, 650);
   }
@@ -224,6 +291,7 @@
     else if (a === 'add') { if (t.disabled) return; e.stopPropagation(); add(+t.getAttribute('data-id'), +t.getAttribute('data-size'), t); }
     else if (a === 'remove') { var k = +t.getAttribute('data-key'); S.lines = S.lines.filter(function (x) { return x.key !== k; }); S.cart = S.lines.length; S.drawer = S.lines.length > 0; renderCart(); }
     else if (a === 'close') { S.drawer = false; renderCart(); }
+    else if (a === 'checkout') { if (CFG.checkoutUrl) window.location.href = CFG.checkoutUrl; }
     else if (a === 'sticky') {
       if (S.cart > 0) { S.drawer = true; renderCart(); }
       else { var g = $('festive-edit'); if (g) window.scrollTo({ top: g.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' }); }
@@ -247,7 +315,7 @@
     for (var yy = -60, row = 0; yy < r.height + 60; yy += 30, row++) for (var xx = (row % 2) * 18 - 36; xx < r.width + 36; xx += 36) { x.beginPath(); x.moveTo(xx, yy - 27); x.lineTo(xx + 15, yy); x.lineTo(xx, yy + 27); x.lineTo(xx - 15, yy); x.closePath(); x.stroke(); }
     x.fillStyle = '#141414'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.font = '700 ' + Math.max(22, r.width * .06) + "px 'Courier Prime', monospace"; x.fillText('SCRATCH TO PEEK', r.width / 2, r.height / 2 - 12);
-    x.font = '700 ' + Math.max(11, r.width * .022) + "px 'Courier Prime', monospace"; x.fillText("SEE THE BAAZIGAR'S CHARM", r.width / 2, r.height / 2 + r.width * .04);
+    x.font = '700 ' + Math.max(11, r.width * .022) + "px 'Courier Prime', monospace"; x.fillText("SEE THE LUCKY GIFTS", r.width / 2, r.height / 2 + r.width * .04);
   }
   function flakes(cx, cy) {
     if (!flakeLayer) { flakeLayer = document.createElement('div'); flakeLayer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;overflow:hidden'; document.body.appendChild(flakeLayer); }
@@ -299,7 +367,7 @@
     card.style.boxShadow = t ? (-t.x * 30).toFixed(0) + 'px ' + (34 - t.y * 14).toFixed(0) + 'px 60px -28px rgba(242,37,70,.5)' : '0 30px 60px -34px rgba(20,20,20,.45)';
   }
   function initScratch() {
-    scratch = $('scratch');
+    scratch = $('scratch'); if (!scratch) return;
     scratch.addEventListener('pointerdown', function (e) {
       if (!S.touched) { S.touched = true; $('scratch-hint').style.display = 'none'; }
       scratch.setPointerCapture && scratch.setPointerCapture(e.pointerId);
@@ -357,10 +425,10 @@
   }
 
   function init() {
-    renderGrid(); renderCount(); renderCart();
+    renderGrid(); renderCount(); renderCart(); loadCollection();
     window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onScroll, { passive: true });
-    if (CFG.liveTicking) tick();
+    pollStock();
     initScratch();
     if (CFG.fireworks) startSky();
   }
