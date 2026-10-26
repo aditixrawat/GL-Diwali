@@ -3,7 +3,7 @@
   var CFG = {
     fireworks: true,
     /* Product grid source: Shopify collection JSON. Falls back to the built-in list if it can't be reached. */
-    collectionUrl: 'https://gullylabs.com/collections/diwali-edit/products.json?limit=250',
+    collectionUrl: 'https://gullylabs.com/collections/diwali/products.json?limit=250',
     /* When the page runs on the Shopify store, Add to cart also adds the real variant to the Shopify cart. */
     shopifyCart: true,
     checkoutUrl: '/checkout',
