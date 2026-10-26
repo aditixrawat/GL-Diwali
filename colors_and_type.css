@@ -1,0 +1,203 @@
+/* =========================================================
+   Gullylabs Design System — colors_and_type.css
+   Captured from gullylabs.com /products/gully-number-001
+   (Figma 390w mobile breakpoint)
+   ========================================================= */
+
+/* ---------- Type loading ----------
+   The brand uses Helvetica + Helvetica Bold. We fall back to
+   the system Helvetica stack; Inter is loaded for small system /
+   admin chrome where the Figma referenced Inter directly.
+*/
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  /* ---------- Base color tokens ---------- */
+  --gl-ink: #000000;              /* primary text, primary surface ink (491× in source) */
+  --gl-ink-90: rgba(0,0,0,0.9);
+  --gl-ink-60: rgba(0,0,0,0.6);   /* secondary text (e.g. UK6 chip) */
+  --gl-ink-30: rgba(0,0,0,0.3);
+  --gl-ink-10: rgba(0,0,0,0.1);   /* hairline borders, dividers */
+  --gl-ink-06: rgba(0,0,0,0.06);  /* progress-bar track */
+  --gl-ink-024: rgba(0,0,0,0.024);/* size-option chip fill */
+
+  --gl-paper: #ffffff;            /* default canvas */
+  --gl-paper-soft: #fafafa;       /* color swatch tile bg */
+  --gl-paper-warm: #fefefe;
+  --gl-paper-tint: #e3e3e3;       /* dark-mode caption text in feature bar */
+
+  /* ---------- Brand accents ---------- */
+  --gl-brand-blue: #003bd0;       /* announcement bar, FAQ block, verified pills */
+  --gl-brand-blue-bright: #0f52dc;/* hover / link state of brand blue */
+  --gl-brand-blue-deep: #006fcf;  /* secondary blue (rare) */
+  --gl-amber: #f59e0b;            /* star ratings (47× in source) */
+  --gl-saffron: #f58720;          /* warm orange micro-accent */
+  --gl-verified-green: #39a935;   /* "Verified" review pill */
+  --gl-error-red: #ff0000;        /* form error / stroke only */
+
+  /* admin chrome (helium product recommendation badge) */
+  --gl-admin-bg: #003a5a;
+  --gl-admin-fg: #91d0ff;
+
+  /* ---------- Semantic surface tokens ---------- */
+  --gl-bg: var(--gl-paper);
+  --gl-fg: var(--gl-ink);
+  --gl-fg-muted: var(--gl-ink-60);
+  --gl-border: var(--gl-ink-10);
+  --gl-border-strong: var(--gl-ink);
+  --gl-divider: var(--gl-ink-10);
+
+  --gl-bg-inverse: var(--gl-ink);        /* feature-marquee footer */
+  --gl-fg-inverse: var(--gl-paper);
+  --gl-bg-promo: var(--gl-brand-blue);   /* FAQ block, announcement */
+  --gl-fg-promo: var(--gl-paper);
+
+  /* ---------- Radius ---------- */
+  --gl-r-tile: 5px;       /* swatches, photo thumbnails */
+  --gl-r-field: 6px;      /* form options field */
+  --gl-r-sheet: 16px;     /* bottom sheet top corners */
+  --gl-r-card: 24px;      /* large card top corners (FAQ block) */
+  --gl-r-pill: 60px;      /* primary buttons, badges */
+  --gl-r-circle: 9999px;  /* avatars, dots */
+
+  /* ---------- Elevation / shadow ---------- */
+  --gl-shadow-sticky: 0 -1px 8px 0 rgba(0,0,0,0.06);   /* lifts bottom bar */
+  --gl-shadow-tile:   0 0 0 1px rgba(23,23,23,0.10);    /* inset 1px swatch ring */
+
+  /* ---------- Spacing scale (4-based) ---------- */
+  --gl-s-1: 4px;
+  --gl-s-2: 8px;
+  --gl-s-3: 12px;
+  --gl-s-4: 16px;
+  --gl-s-5: 20px;     /* page gutter */
+  --gl-s-6: 24px;     /* default section rhythm */
+  --gl-s-8: 32px;
+  --gl-s-10: 40px;
+  --gl-s-12: 48px;    /* announcement bar height */
+  --gl-s-16: 64px;
+
+  /* ---------- Type family ---------- */
+  --gl-font-brand: "Helvetica Neue", "Helvetica", "Arial", system-ui, sans-serif;
+  --gl-font-system: "Inter", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+  --gl-font-mono: ui-monospace, "SF Mono", "Menlo", monospace;
+
+  /* ---------- Type scale (px values pulled from Figma) ---------- */
+  --gl-fs-9: 9px;        /* micro chrome */
+  --gl-fs-10: 10px;      /* footer micro */
+  --gl-fs-11: 11px;      /* size sub-label */
+  --gl-fs-12: 12px;      /* announcement, captions */
+  --gl-fs-13: 13.3px;    /* admin draft label */
+  --gl-fs-14: 14px;      /* body */
+  --gl-fs-button: 13.6px;/* primary button label */
+  --gl-fs-price: 15.2px; /* price hint */
+  --gl-fs-16: 16px;      /* section headers */
+  --gl-fs-17: 17.3px;    /* price */
+  --gl-fs-20: 20px;
+  --gl-fs-22: 22px;      /* product title (compact)*/
+  --gl-fs-h1: 24px;      /* page H1 on PDP */
+
+  --gl-lh-tight: 1;
+  --gl-lh-body: 1.25;    /* 17.5px on 14 body */
+  --gl-lh-loose: 1.6;
+}
+
+/* ---------- Base typography classes ----------
+   These are utility recipes — use them on real elements (h1, p, etc).
+   The semantic vars (--gl-h1 etc) collect every dimension at one source. */
+
+.gl-h1, [data-gl-type="h1"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 700;
+  font-size: var(--gl-fs-h1);
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  color: var(--gl-fg);
+  text-transform: uppercase;
+}
+
+.gl-h2, [data-gl-type="h2"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 400;
+  font-size: var(--gl-fs-16);
+  line-height: 1.6;       /* 25.6 px in source */
+  color: var(--gl-fg);
+}
+
+.gl-eyebrow, [data-gl-type="eyebrow"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 700;
+  font-size: var(--gl-fs-12);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gl-fg);
+}
+
+.gl-body, [data-gl-type="body"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 400;
+  font-size: var(--gl-fs-14);
+  line-height: 1.25;       /* 17.5 px on 14 px */
+  color: var(--gl-fg);
+}
+
+.gl-body-soft, [data-gl-type="body-soft"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 400;
+  font-size: var(--gl-fs-12);
+  line-height: 1.25;
+  color: var(--gl-fg-muted);
+}
+
+.gl-price, [data-gl-type="price"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 400;        /* Figma uses regular, sized up */
+  font-size: var(--gl-fs-17);
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--gl-fg);
+}
+
+.gl-price-sm, [data-gl-type="price-sm"] {
+  font-family: var(--gl-font-brand);
+  font-size: var(--gl-fs-price);
+  line-height: 1;
+  color: var(--gl-fg);
+}
+
+.gl-button-label, [data-gl-type="button"] {
+  font-family: var(--gl-font-brand);
+  font-weight: 400;
+  font-size: var(--gl-fs-button);
+  line-height: 1;
+  color: inherit;
+}
+
+.gl-caption, [data-gl-type="caption"] {
+  font-family: var(--gl-font-brand);
+  font-size: var(--gl-fs-12);
+  line-height: 1.25;
+  color: var(--gl-fg-muted);
+}
+
+.gl-micro, [data-gl-type="micro"] {
+  font-family: var(--gl-font-brand);
+  font-size: var(--gl-fs-10);
+  line-height: 1.2;
+  color: var(--gl-fg-muted);
+}
+
+.gl-system, [data-gl-type="system"] {
+  font-family: var(--gl-font-system);
+  font-weight: 400;
+  font-size: var(--gl-fs-13);
+  line-height: 1.2;
+  color: var(--gl-fg);
+}
+
+/* ---------- Page base ---------- */
+.gl-page {
+  font-family: var(--gl-font-brand);
+  background: var(--gl-bg);
+  color: var(--gl-fg);
+  -webkit-font-smoothing: antialiased;
+}
